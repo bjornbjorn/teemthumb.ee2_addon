@@ -11,7 +11,7 @@ h3. Usage example
 
 Usage example (inside an {exp:channel:entries} tag and where {blog_image} is a custom field of type image):
 
-<code>
+<pre><code>
 <div class="entry">
 	{if '{blog_image}' != ''}
 		{exp:teemthumb:size src='{blog_image}' w='240' h='161' zc='1'} 							
@@ -19,7 +19,7 @@ Usage example (inside an {exp:channel:entries} tag and where {blog_image} is a c
 		{/exp:teemthumb:size}	
 	{/if}    
 </div><!-- /.entry -->					
-</code>
+</code></pre>
 
 h4. Parameters
 
