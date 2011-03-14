@@ -21,8 +21,12 @@ Usage example (inside an {exp:channel:entries} tag and where {blog_image} is a c
 </div><!-- /.entry -->					
 </code></pre>
 
-h4. Parameters
+h3. Parameters
 
 * w: width
 * h: height
 * zc: zoom+crop to fit w/h? (1=yes, 0=no)
+
+h3. Variables
+
+* _{sized}_ will be the src path to the resized image
