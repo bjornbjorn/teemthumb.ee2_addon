@@ -1,0 +1,22 @@
+h2. TeemThumb
+
+Image resizing on the fly for EE2.
+
+h3. Installing
+
+* Upload "teemthumb" folder into /system/expressionengine/third_party/
+* Create a folder on the wwwroot called "cache", make it writable by PHP (chmod 777) (teemthumb will place thumbs there)
+
+h3. Usage example
+
+Usage example (inside an {exp:channel:entries} tag and where {blog_image} is a custom field of type image):
+
+<code>
+<div class="entry">
+	{if '{blog_image}' != ''}
+		{exp:teemthumb:size src='{blog_image}' w='240' h='161' zc='1'} 							
+			<div class="wp-caption alignright" style="width: 250px"><a href="{blog_image}"><img alt="" src="{sized}" title="{blog_image_caption}" width="{w}" height="{h}"/></a><p class="wp-caption-text">{blog_image_caption}</p></div>								
+		{/exp:teemthumb:size}	
+	{/if}    
+</div><!-- /.entry -->					
+</code>
