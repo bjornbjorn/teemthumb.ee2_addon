@@ -20,3 +20,9 @@ Usage example (inside an {exp:channel:entries} tag and where {blog_image} is a c
 	{/if}    
 </div><!-- /.entry -->					
 </code>
+
+h4. Parameters
+
+* w: width
+* h: height
+* zc: zoom+crop to fit w/h? (1=yes, 0=no)
