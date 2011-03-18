@@ -344,7 +344,9 @@ function _cleanCache() {
 	
 	if (count($files) > 0) {
 		
-		usort($files, "_filemtime_compare");
+		if(is_array($files)) {
+			usort($files, "_filemtime_compare");
+		}
 		$i = 0;
 		
 		if (count($files) > CACHE_SIZE) {
@@ -589,7 +591,7 @@ function _get_cache_file($src, $w, $h, $q)
 	Paramters
 	---------
 	w: width
-	h: height
+	h: height	
 	zc: zoom crop (0 or 1)
 	q: quality (default is 75 and max is 100)
 	
