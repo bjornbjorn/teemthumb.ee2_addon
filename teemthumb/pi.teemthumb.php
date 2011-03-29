@@ -1,7 +1,5 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
-// 2011-03-21: Modified DSN, Clean up code and fix so file caching works properly.
-
 $plugin_info = array('pi_name' => 'TeemThumb', 
     'pi_version' => '1.0',
     'pi_author' => 'Bjorn Borresen',
@@ -25,9 +23,12 @@ function _filemtime_compare($a, $b)
 class Teemthumb {
 
 	var $lastModified;
+    var $cache_dir = "./cache/";
 
 	function Teemthumb()
 	{
+
+
 		$this->EE =& get_instance();
 	}
 
@@ -91,33 +92,22 @@ class Teemthumb {
 			$new_width = 100;
 			$new_height = 100;
 		}
-		
-		// set path to cache directory (default is ./cache)
-		// this can be changed to a different location
-		$cache_dir = './cache';
-		
+
 		// get mime type of src
 		$mime_type = $this->_mime_type($src);
 
 		
 		// check to see if this image is in the cache already
-		// $this->_check_cache( $cache_dir, $mime_type );
-		// DSN: Let's just put the code right here since it is only called once.
-
-		$cache_file_name = $cache_dir . '/' . $this->_get_cache_file($src, $new_width, $new_height, $quality);
+		$cache_file_name = $this->cache_dir . $this->_get_cache_file($src, $new_width, $new_height, $quality);
 
 		if ( file_exists($cache_file_name) )
 		{
-			// The cache file exists, so just return some data to EE and exit
+            if($new_width == 0 || $new_height == 0) // if only one of the values were given we need to get the other
+            {
+                list($new_width, $new_height) = getimagesize($cache_file_name);
+            }
 
-			$tagdata        = $this->EE->TMPL->tagdata;			
-			$cache_file_url = $this->EE->config->item('site_url').str_replace("./", "", $cache_file_name);
-			$tagdata        = $this->EE->TMPL->swap_var_single('sized', $cache_file_url, $tagdata);
-			$tagdata        = $this->EE->TMPL->swap_var_single('w', $new_width, $tagdata);
-			$tagdata        = $this->EE->TMPL->swap_var_single('h', $new_height, $tagdata);
-
-			// Hopefully this will exit right here and return to EE w/o doing anymore
-			return $tagdata;
+			return $this->get_tagdata($cache_file_name, $new_width, $new_height);
 		}
 
 
@@ -265,14 +255,11 @@ class Teemthumb {
 			
 			
 			// check to see if we can write to the cache directory
-			$is_writable = 0;
-			$cache_file_name = $cache_dir . '/' . $this->_get_cache_file($src, $new_width, $new_height, $quality);
-
 			if (touch($cache_file_name))
 			{
 			        // give 666 permissions so that the developer 
 			        // can overwrite web server user
-			        chmod ($cache_file_name, 0666);
+			        @chmod ($cache_file_name, 0666);
 		        	$is_writable = 1;
 			}
 			else
@@ -293,13 +280,7 @@ class Teemthumb {
 	    			
 			// remove image from memory
 			imagedestroy($canvas);
-			
-			$tagdata = $this->EE->TMPL->tagdata;			
-			$cache_file_url = $this->EE->config->item('site_url').str_replace("./", "", $cache_file_name);
-			$tagdata = $this->EE->TMPL->swap_var_single('sized', $cache_file_url, $tagdata);
-			$tagdata = $this->EE->TMPL->swap_var_single('w', $new_width, $tagdata);
-			$tagdata = $this->EE->TMPL->swap_var_single('h', $new_height, $tagdata);
-			return $tagdata;
+			return $this->get_tagdata($cache_file_name, $new_width, $new_height);
 		}
 		else
 		{
@@ -313,6 +294,24 @@ class Teemthumb {
 			}
 		}
 	}
+
+    /**
+     * Get tagdata to return
+     *
+     * @param  $sized
+     * @param  $w
+     * @param  $h
+     * @return void
+     */
+    private function get_tagdata($sized, $w, $h)
+    {
+        $tagdata = $this->EE->TMPL->tagdata;
+        $cache_file_url = $this->EE->config->item('site_url').str_replace("./", "", $sized);
+        $tagdata = $this->EE->TMPL->swap_var_single('sized', $cache_file_url, $tagdata);
+        $tagdata = $this->EE->TMPL->swap_var_single('w', $w, $tagdata);
+        $tagdata = $this->EE->TMPL->swap_var_single('h', $h, $tagdata);
+        return $tagdata;
+    }
 
 //*********************************************
 // CALLED FUNCTIONS
@@ -458,19 +457,6 @@ function _valid_src_mime_type($mime_type)
 		return true;
 	}
 	return false;
-}
-
-
-function _check_cache($cache_dir, $mime_type)
-{
-	// make sure cache dir exists
-	if (!file_exists($cache_dir))
-	{
-		// give 777 permissions so that developer can overwrite
-		// files created by web server user
-		mkdir($cache_dir);
-		chmod($cache_dir, 0777);
-	}
 }
 
 // Create a special unique filename for the cache file
