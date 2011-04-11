@@ -1,7 +1,7 @@
 v1.2 2011-04-11
 ---------------
 - Do not set memory_limit if it is already set to more than 30M
-- Added debug parameter to {exp:teemthumb:size} tag - if set to "yes" teemthumb will display an error instead of logging to template log
+- Added debug parameter to {exp:teemthumb:size} tag - if set to 1 (or yes) teemthumb will display an error instead of logging to template log
 
 2011-03-29
 ---------------

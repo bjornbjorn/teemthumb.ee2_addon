@@ -26,6 +26,7 @@ h3. Parameters
 * w: width
 * h: height
 * zc: zoom+crop to fit w/h? (1=yes, 0=no)
+* debug: if set to 1 then errors will be outputted as an error message instead of logged
 
 h3. Variables
 

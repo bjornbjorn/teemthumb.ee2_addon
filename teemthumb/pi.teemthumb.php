@@ -51,7 +51,8 @@ class Teemthumb {
 				"11" => array(IMG_FILTER_SMOOTH, 0),
 			);
 		}
-		$this->debug = ($this->_get_request('debug', FALSE) == 'yes');
+        $do_debug = $this->_get_request('debug', FALSE);
+		$this->debug = ($do_debug == 'yes' || $do_debug == 1);
 		// sort out image source
 		$src = $this->_get_request("src", "");
 		if ($src == "" || strlen($src) <= 3)
@@ -80,11 +81,11 @@ class Teemthumb {
 
 		// last modified time of the SOURCE file (for caching)
 		$this->lastModified = filemtime($src);
-		
+
 		// get properties
 		$new_width 		= preg_replace("/[^0-9]+/", "", $this->_get_request("w", 0));
 		$new_height	 	= preg_replace("/[^0-9]+/", "", $this->_get_request("h", 0));
-		$zoom_crop 		= preg_replace("/[^0-9]+/", "", $this->_get_request("zc", 1));
+		$zoom_crop 		= preg_replace("/[^0-9]+/", "", $zc);
 		$quality 		= preg_replace("/[^0-9]+/", "", $this->_get_request("q", 80));
 		$filters		= $this->_get_request("f", "");
 
