@@ -1,7 +1,7 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
 $plugin_info = array('pi_name' => 'TeemThumb', 
-    'pi_version' => '1.0',
+    'pi_version' => '1.2',
     'pi_author' => 'Bjorn Borresen',
     'pi_author_url' => 'http://ee.bybjorn.com/teemthumb/',
     'pi_description' => 'Timthumb for EE',
@@ -24,6 +24,7 @@ class Teemthumb {
 
 	var $lastModified;
     var $cache_dir = "./cache/";
+    var $debug = FALSE;
 
 	function Teemthumb()
 	{
@@ -50,7 +51,7 @@ class Teemthumb {
 				"11" => array(IMG_FILTER_SMOOTH, 0),
 			);
 		}
-		
+		$this->debug = ($this->_get_request('debug', FALSE) == 'yes');
 		// sort out image source
 		$src = $this->_get_request("src", "");
 		if ($src == "" || strlen($src) <= 3)
@@ -71,12 +72,12 @@ class Teemthumb {
 		$src = $this->_cleanSource($src);
 		
 		// Check to see if the source image file being passed to this routine really exists
-		if(!file_exists($src))
+		if(!file_exists($src) || !is_file($src))
 		{
 			$this->_displayError("image not found");
 			return;
-		}		
-		
+		}
+
 		// last modified time of the SOURCE file (for caching)
 		$this->lastModified = filemtime($src);
 		
@@ -116,9 +117,13 @@ class Teemthumb {
 		// not checking to see if the source file was modified since the last cache file was created.
 		// This will cause some problems in the future.
 		$this->_cleanCache();
-		
-		ini_set('memory_limit', "30M");
-		
+
+        $current_mem_limit = intval(ini_get('memory_limit'));
+        if($current_mem_limit < 30)
+        {
+            ini_set('memory_limit', "30M");
+        }
+
 		// make sure that the src is gif/jpg/png
 		if(!$this->_valid_src_mime_type($mime_type))
 		{
@@ -431,6 +436,7 @@ function _mime_type($file)
 
 		// file details
 		$fileDetails = pathinfo($file);
+
 		$ext = strtolower($fileDetails["extension"]);
 
 		// mime types
@@ -557,7 +563,14 @@ function _get_document_root ($src)
 /* generic error message */
 function _displayError($errorString = '')
 {
-	$this->EE->TMPL->log_item("teemthumb ERROR: ".$errorString);
+    if($this->debug)
+    {
+        $this->EE->output->show_user_error('general', array($errorString));
+    }
+    else
+    {
+	    $this->EE->TMPL->log_item("teemthumb ERROR: ".$errorString);
+    }
 }
 
 
