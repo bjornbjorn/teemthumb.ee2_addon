@@ -85,7 +85,7 @@ class Teemthumb {
 		// get properties
 		$new_width 		= preg_replace("/[^0-9]+/", "", $this->_get_request("w", 0));
 		$new_height	 	= preg_replace("/[^0-9]+/", "", $this->_get_request("h", 0));
-		$zoom_crop 		= preg_replace("/[^0-9]+/", "", $zc);
+		$zoom_crop 		= preg_replace("/[^0-9]+/", "", $this->_get_request("zc", 0));
 		$quality 		= preg_replace("/[^0-9]+/", "", $this->_get_request("q", 80));
 		$filters		= $this->_get_request("f", "");
 
