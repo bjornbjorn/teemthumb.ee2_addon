@@ -1,7 +1,7 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
 $plugin_info = array('pi_name' => 'TeemThumb', 
-    'pi_version' => '1.2',
+    'pi_version' => '1.3',
     'pi_author' => 'Bjorn Borresen',
     'pi_author_url' => 'http://ee.bybjorn.com/teemthumb/',
     'pi_description' => 'Timthumb for EE',
@@ -22,14 +22,15 @@ function _filemtime_compare($a, $b)
 
 class Teemthumb {
 
-	var $lastModified;
-    var $cache_dir = "./cache/";
-    var $debug = FALSE;
+	private $lastModified;
+    private $originalWidth;
+    private $originalHeight;
+
+    private $debug = FALSE;
+    private $valid_types = "/jpg|jpeg|gif|png/i";
 
 	function Teemthumb()
 	{
-
-
 		$this->EE =& get_instance();
 	}
 
@@ -55,7 +56,8 @@ class Teemthumb {
 		$this->debug = ($do_debug == 'yes' || $do_debug == 1);
 		// sort out image source
 		$src = $this->_get_request("src", "");
-		if ($src == "" || strlen($src) <= 3)
+
+        if ($src == "" || strlen($src) <= 3)
 		{
 			$this->_displayError("no image specified");
 			return;
@@ -71,7 +73,7 @@ class Teemthumb {
 		
 		// clean params before use
 		$src = $this->_cleanSource($src);
-		
+
 		// Check to see if the source image file being passed to this routine really exists
 		if(!file_exists($src) || !is_file($src))
 		{
@@ -81,6 +83,9 @@ class Teemthumb {
 
 		// last modified time of the SOURCE file (for caching)
 		$this->lastModified = filemtime($src);
+        $sizes = getimagesize($src);
+        $this->originalWidth = $sizes[0];
+        $this->originalHeight = $sizes[1];
 
 		// get properties
 		$new_width 		= preg_replace("/[^0-9]+/", "", $this->_get_request("w", 0));
@@ -95,13 +100,18 @@ class Teemthumb {
 			$new_height = 100;
 		}
 
+
+        if(!$filters && ($new_width == $this->originalWidth && $new_height == $this->originalHeight)) {
+            return $this->get_tagdata($src, $new_width, $new_height);
+        }
+
 		// get mime type of src
 		$mime_type = $this->_mime_type($src);
-
+		$cache_dir = $this->get_teemthumb_cache_path();
 		
 		// check to see if this image is in the cache already
-		$cache_file_name = $this->cache_dir . $this->_get_cache_file($src, $new_width, $new_height, $quality);
-
+		$cache_file_name = $cache_dir . $this->_get_cache_file($src, $new_width, $new_height, $quality, $zoom_crop, $filters);
+		
 		if ( file_exists($cache_file_name) )
 		{
             if($new_width == 0 || $new_height == 0) // if only one of the values were given we need to get the other
@@ -111,8 +121,15 @@ class Teemthumb {
 
 			return $this->get_tagdata($cache_file_name, $new_width, $new_height);
 		}
-
-
+		
+		// make sure cache dir exists
+		if (!file_exists($cache_dir)) {
+			// give 777 permissions so that developer can overwrite
+			// files created by web server user
+			mkdir($cache_dir);
+			chmod($cache_dir, 0777);
+		}		
+		
 		// if not in cache then clear some space and generate a new file
 		// DSN: Not sure why they are cleaning the Cache directory?  Problem is that they are
 		// not checking to see if the source file was modified since the last cache file was created.
@@ -151,11 +168,11 @@ class Teemthumb {
 			$height = imagesy($image);
 
 			// don't allow new width or height to be greater than the original
-			if( $new_width > $width )
+			if(!$zoom_crop && $new_width > $width )
 			{
 				$new_width = $width;
 			}
-			if( $new_height > $height )
+			if(!$zoom_crop && $new_height > $height )
 			{
 				$new_height = $height;
 			}
@@ -311,9 +328,9 @@ class Teemthumb {
      */
     private function get_tagdata($sized, $w, $h)
     {
+        $sized = str_replace($this->get_teemthumb_remove_from_src_path(),'/',$sized);
         $tagdata = $this->EE->TMPL->tagdata;
-        $cache_file_url = $this->EE->config->item('site_url').str_replace("./", "", $sized);
-        $tagdata = $this->EE->TMPL->swap_var_single('sized', $cache_file_url, $tagdata);
+        $tagdata = $this->EE->TMPL->swap_var_single('sized', $sized, $tagdata);
         $tagdata = $this->EE->TMPL->swap_var_single('w', $w, $tagdata);
         $tagdata = $this->EE->TMPL->swap_var_single('h', $h, $tagdata);
         return $tagdata;
@@ -355,9 +372,34 @@ function _open_image($mime_type, $src)
 	return $image;
 }
 
-// Clean out old files from the cache.
-// You can change the number of files to store and to delete per loop in the defines at the top of the code
 
+
+/**
+ * Will return the cache folder teemthumb uses to store the cached files. Defaults to ./cache/ - can be
+ * overriden with config item: teemthumb_cache_path
+ *
+ * @return string
+ */
+private function get_teemthumb_cache_path()
+{
+    return $this->EE->config->item('teemthumb_cache_path') ? $this->EE->config->item('teemthumb_cache_path') : './cache/';
+}
+
+/**
+ * Will return the string to be stripped from the img src url (needed if you specify a specific path, ie. /var/www/etc)
+ * Defaults to ./ - can be overriden with config item: teemthumb_wwwdocs_path
+ *
+ * @return string
+ */
+private function get_teemthumb_remove_from_src_path()
+{
+    return $this->EE->config->item('teemthumb_wwwdocs_path') ? $this->EE->config->item('teemthumb_wwwdocs_path') : './';
+}
+
+/**
+ * Clean out old files from the cache.
+ * You can change the number of files to store and to delete per loop in the defines at the top of the code
+ */
 function _cleanCache()
 {
 	$files = glob("cache/*", GLOB_BRACE);
@@ -459,7 +501,7 @@ function _mime_type($file)
 
 function _valid_src_mime_type($mime_type)
 {
-	if (preg_match("/jpg|jpeg|gif|png/i", $mime_type))
+	if (preg_match($this->valid_types, $mime_type))
 	{
 		return true;
 	}
@@ -467,98 +509,30 @@ function _valid_src_mime_type($mime_type)
 }
 
 // Create a special unique filename for the cache file
-function _get_cache_file($src, $w, $h, $q) 
+function _get_cache_file($src, $w, $h, $q, $zoom_crop, $filters=FALSE)
 {
-	$cachename = $src . VERSION . $this->lastModified . $w . $h . "q" . $q;
-	$cache_file = md5($cachename) . '.png';
-	return $cache_file;
+    $filename_arr = explode('/', $src);
+    $src = $filename_arr[count($filename_arr)-1];
+
+    if (preg_match($this->valid_types, $src, $matches))
+    {
+        $src = str_replace('.'.$matches[0], '', $src);
+    }
+
+    $cachename = $src . '-'.$w.'x'.$h.'_' . $this->lastModified . "q" . $q . ($zoom_crop?'_zc':'').($filters?'f'.str_replace('|','_',$filters):'').".png";
+
+	return $cachename;
 }
 
 
 /* tidy up the image source url */
 function _cleanSource($src)
 {
-		// remove slash from start of string
-		if(strpos($src, "/") == 0)
-		{
-			$src = substr($src, -(strlen($src) - 1));
-		}
-	
-		// remove http/ https/ ftp
-		$src = preg_replace("/^((ht|f)tp(s|):\/\/)/i", "", $src);
-		$src_arr = explode("/", $src);
-		unset($src_arr[0]);			// remove domain name from the source url
-		$src = "/". implode($src_arr, "/" );
-					
-		// don't allow users the ability to use '../' 
-		// in order to gain access to files below document root
-	
-		// src should be specified relative to document root like:
-		// src=images/img.jpg or src=/images/img.jpg
-		// not like:
-		// src=../images/img.jpg
-		$src = preg_replace("/\.\.+\//", "", $src);
-		
-		// get path to image on file system
-		$src = $this->_get_document_root($src) . '/' . $src;	
-	
-		return $src;
+	$src = str_replace($this->EE->config->item('site_url'),$this->EE->config->item('teemthumb_wwwdocs_path'), $src);
+    return $src;
 }
 
-function _get_document_root ($src)
-{
-	// check for unix servers
-	if(@file_exists($_SERVER['DOCUMENT_ROOT'] . '/' . $src))
-	{
-		return $_SERVER['DOCUMENT_ROOT'];
-	}
-		
-	// check from script filename (to get all directories to timthumb location)
-	$parts = array_diff(explode('/', $_SERVER['SCRIPT_FILENAME']), explode('/', $_SERVER['DOCUMENT_ROOT']));
-	$path = $_SERVER['DOCUMENT_ROOT'] . '/';
-	foreach ($parts as $part)
-	{
-		$path .= $part . '/';
-		if (file_exists($path . $src))
-		{
-			return $path;
-		}
-	}
 
-	// The relative paths below are useful if timthumb is moved outside of document root
-	// specifically if installed in wordpress themes like mimbo pro:
-	// /wp-content/themes/mimbopro/scripts/timthumb.php
-	$paths = array(
-		".",
-		"..",
-		"../..",
-		"../../..",
-		"../../../..",
-		"../../../../.."
-	);
-		
-	foreach($paths as $path)
-	{
-		if(@file_exists($path . '/' . $src))
-		{
-			return $path;
-		}
-	}
-
-	// special check for microsoft servers
-	if(!isset($_SERVER['DOCUMENT_ROOT']))
-	{
-    		$path = str_replace("/", "\\", $_SERVER['ORIG_PATH_INFO']);
-    		$path = str_replace($path, "", $_SERVER['SCRIPT_FILENAME']);
-	    	
-	    	if( @file_exists( $path . '/' . $src ) )
-		{
-    			return $path;
-		}
-	}
-
-	$this->_displayError('file not found ' . $src);
-}
 
 
 /* generic error message */

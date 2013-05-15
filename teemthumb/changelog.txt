@@ -1,3 +1,7 @@
+v1.3 2013-05-15
+---------------
+- default values for cache folder if config override not set
+
 v1.2 2011-04-11
 ---------------
 - Do not set memory_limit if it is already set to more than 30M
